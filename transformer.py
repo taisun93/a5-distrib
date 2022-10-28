@@ -42,9 +42,9 @@ class Transformer(nn.Module):
         """
         super().__init__()
         self.encoder = PositionalEncoding(d_model)
-        self.embedder = nn.Embedding(27,20)
+        # self.embedder = nn.Embedding(27,20)
         self.transformer = TransformerLayer(d_model, d_internal)
-        self.W = nn.Linear(5, 3)
+        self.W = nn.Linear(20, 3)
         
         # raise Exception("Implement me")
 
@@ -57,11 +57,11 @@ class Transformer(nn.Module):
         """
         a = self.encoder.forward(indices)
 
-        print("a shape: ",a.shape)
+        # print("a shape: ",a.shape)
         
-        # torch.LongTensor(a)
-        # print(type(a))
-        # a1 = self.embedder(a.long())
+        # # torch.LongTensor(a)
+        # # print(type(a))
+        # # a1 = self.embedder(a.long())
         
         b = self.transformer.forward(a)
 
@@ -76,8 +76,6 @@ class Transformer(nn.Module):
         #linear 
         #softmax
         # final is 20x3
-
-        print("e:",e.shape)
 
         return e
 
@@ -96,7 +94,7 @@ class TransformerLayer(nn.Module):
         self.WQ = torch.rand(d_model, d_internal)
         self.WK = torch.rand(d_model, d_internal)
         self.WV = torch.rand(d_model, d_internal)
-        self.Lin = nn.Linear()
+        self.Lin = nn.Linear(5, 20)
         # print("WQ = :",self.WQ.shape)
         #also return feed foward
 
@@ -114,7 +112,7 @@ class TransformerLayer(nn.Module):
         att = self.attention(q,k,v, 5)
 
         c = torch.nn.functional.relu(att) 
-        d = self.W(c) 
+        d = self.Lin(c) 
         e = torch.nn.functional.relu(d)
         # print("att:",att)
         return e
@@ -160,8 +158,14 @@ class PositionalEncoding(nn.Module):
         :return: a tensor of the same size with positional embeddings added in
         """
         # Second-to-last dimension will always be sequence length
-        input_size = x.shape[-2]
+        
+        # input_size = x.shape[-2]
+        # print("input_size: ", input_size)
+
+        input_size = 20
         indices_to_embed = torch.tensor(np.asarray(range(0, input_size))).type(torch.LongTensor)
+        # print(indices_to_embed)
+
         if self.batched:
             # Use unsqueeze to form a [1, seq len, embedding dim] tensor -- broadcasting will ensure that this
             # gets added correctly across the batch
@@ -169,8 +173,14 @@ class PositionalEncoding(nn.Module):
             
             return x + emb_unsq
         else:
-            emb = x + self.emb(indices_to_embed)
-            # print("emb is :", emb.shape)
+            torch.t(x)
+            
+            y = self.emb(indices_to_embed)
+            print(x)
+            print(x.shape)
+            print(y.shape)
+            emb = x + y
+            print("emb is :", emb.shape)
             return emb
             
 
@@ -184,13 +194,15 @@ def train_classifier(args, train, dev):
 
     # The following code DOES NOT WORK but can be a starting point for your implementation
     # Some suggested snippets to use:
-    print(train[0].input)
+    # print(train[0].input)
     # print(len(train[0].input_indexed))
-    print("output tensor ", train[0].output_tensor.shape)
-    blah = torch.zeros(20, 3)
+    # print("output tensor ", train[0].output_tensor.shape)
+    # blah = torch.zeros(20, 3)
+    blah = train[0].input_tensor
+    # print(blah.shape)
     vocab_size = 27
     num_positions = 20
-    d_model = 3
+    d_model = 1
     d_internal = 5
     model = Transformer(vocab_size, num_positions, d_model, d_internal, 3, 1)
     

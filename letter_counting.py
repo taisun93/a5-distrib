@@ -76,9 +76,9 @@ if __name__ == '__main__':
 
     model = train_classifier(args, train_bundles, dev_bundles)
     # Decodes the first 5 dev examples to display as output
-    decode(model, dev_bundles[0:5], do_print=True, do_plot_attn=True)
-    # Decodes 100 training examples and the entire dev set (1000 examples)
-    print("Training accuracy (100 exs):")
-    decode(model, train_bundles[0:100])
-    print("Dev accuracy (whole set):")
-    decode(model, dev_bundles)
+    # decode(model, dev_bundles[0:5], do_print=True, do_plot_attn=True)
+    # # Decodes 100 training examples and the entire dev set (1000 examples)
+    # print("Training accuracy (100 exs):")
+    # decode(model, train_bundles[0:100])
+    # print("Dev accuracy (whole set):")
+    # decode(model, dev_bundles)
