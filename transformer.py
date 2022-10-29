@@ -41,8 +41,11 @@ class Transformer(nn.Module):
         :param num_layers: number of TransformerLayers to use; can be whatever you want
         """
         super().__init__()
+        self.embed = nn.Embedding(vocab_size, d_model)
+        #20x3
         self.encoder = PositionalEncoding(d_model)
         # self.embedder = nn.Embedding(27,20)
+        self.transformer = TransformerLayer(d_model, d_internal)
         self.transformer = TransformerLayer(d_model, d_internal)
         self.W = nn.Linear(20, 3)
         
@@ -55,7 +58,8 @@ class Transformer(nn.Module):
         :return: A tuple of the softmax log probabilities (should be a 20x3 matrix) and a list of the attention
         maps you use in your layers (can be variable length, but each should be a 20x20 matrix)
         """
-        a = self.encoder.forward(indices)
+        z = self.embed(indices)
+        a = self.encoder.forward(z)
 
         # print("a shape: ",a.shape)
         
@@ -64,20 +68,20 @@ class Transformer(nn.Module):
         # # a1 = self.embedder(a.long())
         
         b = self.transformer.forward(a)
-
+        b2 = self.transformer.forward(b)
         # put in transformerlayer
         # c = torch.nn.functional.relu(b) 
         # d = self.W(c) 
         # e = torch.nn.functional.relu(d)
         # put in transformerlayer
-        c = self.W(b)
+        c = self.W(b2)
         e = F.softmax(c)
 
-        #linear 
-        #softmax
-        # final is 20x3
 
-        return e
+        # final is 20x3 logprobs
+        # what is attention maps
+
+        return e, None
 
 
 # Your implementation of the Transformer layer goes here. It should take vectors and return the same number of vectors
@@ -91,10 +95,21 @@ class TransformerLayer(nn.Module):
         should both be of this length.
         """
         super().__init__()
-        self.WQ = torch.rand(d_model, d_internal)
-        self.WK = torch.rand(d_model, d_internal)
-        self.WV = torch.rand(d_model, d_internal)
-        self.Lin = nn.Linear(5, 20)
+        self.internal = d_internal
+        self.WQ = nn.Linear(d_internal, d_model)
+        self.WK = nn.Linear(d_internal, d_model)
+        self.WV = nn.Linear(d_internal, d_model)
+
+        nn.init.xavier_uniform_(self.WQ.weight)
+        nn.init.xavier_uniform_(self.WK.weight)
+        nn.init.xavier_uniform_(self.WV.weight)
+
+
+
+        # self.WQ = torch.rand(d_model, d_internal)
+        # self.WK = torch.rand(d_model, d_internal)
+        # self.WV = torch.rand(d_model, d_internal)
+        self.Lin = nn.Linear(d_internal, 20)
         # print("WQ = :",self.WQ.shape)
         #also return feed foward
 
@@ -103,13 +118,12 @@ class TransformerLayer(nn.Module):
 
 
     def forward(self, input_vecs):
-        q = torch.matmul( input_vecs, self.WQ)
-        k = torch.matmul( input_vecs, self.WK)
-        v = torch.matmul( input_vecs, self.WV)
-        print("q shape :", q.shape)
-        print("k shape :", k.shape)
-        print("v shape :", v.shape)
-        att = self.attention(q,k,v, 5)
+        q = torch.matmul( input_vecs, self.WQ.weight)
+        k = torch.matmul( input_vecs, self.WK.weight)
+        v = torch.matmul( input_vecs, self.WV.weight)
+
+        att = self.attention(q,k,v, self.internal)
+        #lin lin lin relu lin lin softmax
 
         c = torch.nn.functional.relu(att) 
         d = self.Lin(c) 
@@ -121,22 +135,14 @@ class TransformerLayer(nn.Module):
     def attention(self, q, k, v, d_k, mask=None, dropout=None):
     
         scores = torch.matmul(q, k.transpose(-2, -1)) /  math.sqrt(d_k)
-
-        # if mask is not None:
-        #     mask = mask.unsqueeze(1)
-        #     scores = scores.masked_fill(mask == 0, -1e9)
-        # print("scores: ",scores.shape)
-        # print(scores)
         scores = torch.nn.functional.softmax(scores, dim = -1)
-        # print(scores.shape)
-        # if dropout is not None:
-        #     scores = dropout(scores)
             
         output = torch.matmul(scores, v)
         return output
 
 
 # Implementation of positional encoding that you can use in your network
+#Undo mods
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, num_positions: int=20, batched=False):
         """
@@ -158,30 +164,16 @@ class PositionalEncoding(nn.Module):
         :return: a tensor of the same size with positional embeddings added in
         """
         # Second-to-last dimension will always be sequence length
-        
-        # input_size = x.shape[-2]
-        # print("input_size: ", input_size)
-
-        input_size = 20
+        input_size = x.shape[-2]
         indices_to_embed = torch.tensor(np.asarray(range(0, input_size))).type(torch.LongTensor)
-        # print(indices_to_embed)
-
         if self.batched:
             # Use unsqueeze to form a [1, seq len, embedding dim] tensor -- broadcasting will ensure that this
             # gets added correctly across the batch
             emb_unsq = self.emb(indices_to_embed).unsqueeze(0)
-            
             return x + emb_unsq
         else:
-            torch.t(x)
-            
-            y = self.emb(indices_to_embed)
-            print(x)
-            print(x.shape)
-            print(y.shape)
-            emb = x + y
-            print("emb is :", emb.shape)
-            return emb
+            return x + self.emb(indices_to_embed)
+
             
 
 
@@ -198,33 +190,45 @@ def train_classifier(args, train, dev):
     # print(len(train[0].input_indexed))
     # print("output tensor ", train[0].output_tensor.shape)
     # blah = torch.zeros(20, 3)
-    blah = train[0].input_tensor
+    # blah = train[0].input_tensor
     # print(blah.shape)
     vocab_size = 27
     num_positions = 20
-    d_model = 1
-    d_internal = 5
+    d_model = 100
+    d_internal = 20
     model = Transformer(vocab_size, num_positions, d_model, d_internal, 3, 1)
     
-    model.forward(blah)
-    # print(model.forward(blah))
-    # optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    # model.forward(blah)
+    loss_fcn = nn.NLLLoss()
+    
+    # result = model.forward(blah)
+    
+    # loss = loss_fcn(result, train[0].output_tensor) 
+    # print(loss)
+    optimizer = optim.Adam(model.parameters(), lr=.1e-4)
 
-    # num_epochs = 10
-    # for t in range(0, num_epochs):
-    #     loss_this_epoch = 0.0
-    #     random.seed(t)
-    #     # You can use batching if you'd like
-    #     ex_idxs = [i for i in range(0, len(train))]
-    #     random.shuffle(ex_idxs)
-        # loss_fcn = nn.NLLLoss()
-    #     for ex_idx in ex_idxs:
-                # loss = loss_fcn(output from model , tensor of 20) 
-    #         # model.zero_grad()
-    #         # loss.backward()
-    #         # optimizer.step()
-    #         loss_this_epoch += loss.item()
-    # model.eval()
+    num_epochs = 5
+    for t in range(0, num_epochs):
+        loss_this_epoch = 0.0
+        random.seed(t)
+        # You can use batching if you'd like
+        ex_idxs = [i for i in range(0, len(train))]
+        # ex_idxs = [i for i in range(0, 20)]
+        random.shuffle(ex_idxs)
+        
+        for x in ex_idxs:
+            ex = train[x]
+            result, _ = model.forward(ex.input_tensor)
+            loss = loss_fcn(result, ex.output_tensor) 
+            # print(loss)
+            # print(result)
+            # print(ex.output_tensor)
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
+            loss_this_epoch += loss.item()
+        print(loss_this_epoch)
+    model.eval()
     return model
 
 
