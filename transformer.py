@@ -46,9 +46,9 @@ class Transformer(nn.Module):
         self.encoder = PositionalEncoding(d_model)
         # self.embedder = nn.Embedding(27,20)
         self.transformer = TransformerLayer(d_model, d_internal)
-        self.transformer = TransformerLayer(d_model, d_internal)
-        self.W = nn.Linear(20, 3)
-        
+        # self.transformer2 = TransformerLayer(d_internal, d_internal)
+        self.W = nn.Linear(d_internal, num_classes)
+        # self.softmax =  nn.LogSoftmax(num_positions)
         # raise Exception("Implement me")
 
     def forward(self, indices):
@@ -67,21 +67,25 @@ class Transformer(nn.Module):
         # # print(type(a))
         # # a1 = self.embedder(a.long())
         
-        b = self.transformer.forward(a)
-        b2 = self.transformer.forward(b)
+        b, att = self.transformer.forward(a)
+        # b2 = self.transformer2.forward(b)
         # put in transformerlayer
         # c = torch.nn.functional.relu(b) 
         # d = self.W(c) 
         # e = torch.nn.functional.relu(d)
         # put in transformerlayer
-        c = self.W(b2)
-        e = F.softmax(c)
+        # c = self.W(b2)
+        c = self.W(b)
+        # print(c.shape)
+        # e = self.softmax(c)
+        e = F.log_softmax(c)
+        
 
 
         # final is 20x3 logprobs
         # what is attention maps
 
-        return e, None
+        return e, att
 
 
 # Your implementation of the Transformer layer goes here. It should take vectors and return the same number of vectors
@@ -95,23 +99,21 @@ class TransformerLayer(nn.Module):
         should both be of this length.
         """
         super().__init__()
-        self.internal = d_internal
+        self.internal = d_model
+        # self.WQ = nn.Linear(d_model, d_internal)
+        # # print("shape is ", self.WQ.weight.shape)
+        # self.WK = nn.Linear(d_model, d_internal)
+        # self.WV = nn.Linear(d_model, d_internal)
         self.WQ = nn.Linear(d_internal, d_model)
         self.WK = nn.Linear(d_internal, d_model)
         self.WV = nn.Linear(d_internal, d_model)
+        # nn.init.xavier_uniform_(self.WQ.weight)
+        # nn.init.xavier_uniform_(self.WK.weight)
+        # nn.init.xavier_uniform_(self.WV.weight)
 
-        nn.init.xavier_uniform_(self.WQ.weight)
-        nn.init.xavier_uniform_(self.WK.weight)
-        nn.init.xavier_uniform_(self.WV.weight)
-
-
-
-        # self.WQ = torch.rand(d_model, d_internal)
-        # self.WK = torch.rand(d_model, d_internal)
-        # self.WV = torch.rand(d_model, d_internal)
-        self.Lin = nn.Linear(d_internal, 20)
-        # print("WQ = :",self.WQ.shape)
-        #also return feed foward
+        # self.Lin = nn.Linear(d_internal, d_model)
+        self.Lin = nn.Linear(d_internal, d_internal)
+        # self.Lin2 = nn.Linear(d_internal, d_internal)
 
 
 
@@ -127,9 +129,10 @@ class TransformerLayer(nn.Module):
 
         c = torch.nn.functional.relu(att) 
         d = self.Lin(c) 
-        e = torch.nn.functional.relu(d)
+        # e = torch.nn.functional.relu(d)
+        # f = self.Lin2(e) 
         # print("att:",att)
-        return e
+        return d, att
 
     
     def attention(self, q, k, v, d_k, mask=None, dropout=None):
@@ -195,7 +198,7 @@ def train_classifier(args, train, dev):
     vocab_size = 27
     num_positions = 20
     d_model = 100
-    d_internal = 20
+    d_internal = 50
     model = Transformer(vocab_size, num_positions, d_model, d_internal, 3, 1)
     
     # model.forward(blah)
@@ -205,9 +208,9 @@ def train_classifier(args, train, dev):
     
     # loss = loss_fcn(result, train[0].output_tensor) 
     # print(loss)
-    optimizer = optim.Adam(model.parameters(), lr=.1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
-    num_epochs = 5
+    num_epochs = 10
     for t in range(0, num_epochs):
         loss_this_epoch = 0.0
         random.seed(t)
@@ -218,12 +221,10 @@ def train_classifier(args, train, dev):
         
         for x in ex_idxs:
             ex = train[x]
+            model.zero_grad()
             result, _ = model.forward(ex.input_tensor)
             loss = loss_fcn(result, ex.output_tensor) 
-            # print(loss)
-            # print(result)
-            # print(ex.output_tensor)
-            model.zero_grad()
+            
             loss.backward()
             optimizer.step()
             loss_this_epoch += loss.item()
