@@ -158,10 +158,6 @@ def decode_basic(model, indexer, exs, num_exs=-1):
         output_ids = model.generate(dev_input_tensor, num_beams=beam_size, max_length=65, early_stopping=True, num_return_sequences=beam_size)
         # [0] extracts the first candidate in the beam for the simple decoding method
         one_best = pred_indices_to_prediction(output_ids.data[0][1:], indexer)
-
-
-
-
         
         all_example_preds.append(one_best)
     return all_example_preds
@@ -207,8 +203,34 @@ def decode_oracle(model, indexer, exs, num_exs):
 
 
 def decode_fancy(model, indexer, exs, num_exs):
-    # Same as decode_basic but returns a reranked prediction.
-    raise Exception("Implement me")
+    literal = []
+    # for x in const_list:
+    #     print(indexer.get_object(x))
+    # return
+    all_example_preds = []
+    num_exs_to_use = min(num_exs, len(exs)) if num_exs > 0 else len(exs)
+    for i in range(0, num_exs_to_use):
+        print(exs[i]["input_ids"])
+        ex_length = sum(exs[i]['attention_mask'])
+
+        # exs[i]['input_ids']
+        
+        dev_input_tensor = torch.tensor([exs[i]['input_ids'][0:ex_length]], dtype=torch.long)
+        # You can increase this to run "real" beam search
+        beam_size = 10
+        # The generate method runs decoding with the specified set of
+        # hyperparameters and returns a list of possible sequences
+
+
+        output_ids = model.generate(dev_input_tensor, num_beams=beam_size, max_length=65, early_stopping=True, num_return_sequences=beam_size)
+        # [0] extracts the first candidate in the beam for the simple decoding method
+        # for x in output_ids:
+            
+        one_best = pred_indices_to_prediction(output_ids.data[0][1:], indexer)
+        
+        all_example_preds.append(one_best)
+    return all_example_preds
+
 
 
 # 'east' doesn't actually exist

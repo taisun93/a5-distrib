@@ -82,7 +82,7 @@ if __name__ == '__main__':
         score_decoded_outputs(preds, indexer, dev_dataset)
     elif args.decode_type == "FANCY":
         # Removes the labels to ensure that you don't simply use the oracle method here
-        preds = decode_fancy(model, indexer, dev_dataset.copy_no_label(), num_exs=-1)
+        preds = decode_fancy(model, indexer, dev_dataset.copy_no_label(), num_exs=5)
         score_decoded_outputs(preds, indexer, dev_dataset)
 
 
