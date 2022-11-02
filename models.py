@@ -90,8 +90,8 @@ def score_sequence(pred_to_first_eos, gold_labels) -> (int, int, int):
     total_toks += len(gold_labels)
     if pred_to_first_eos == gold_labels:
         exact_match += 1
-    print("Pred: " + ' '.join(pred_to_first_eos))
-    print("Gold: " + ' '.join(gold_labels))
+    # print("Pred: " + ' '.join(pred_to_first_eos))
+    # print("Gold: " + ' '.join(gold_labels))
     for j in range(0, len(gold_labels)):
         if j < len(pred_to_first_eos) and pred_to_first_eos[j] == gold_labels[j]:
             recall += 1
@@ -128,6 +128,7 @@ def pred_indices_to_prediction(raw_pred_indices, indexer):
     :return: The decoded sequence *stopping at the first occurrence of EOS*
     """
     pred_labels = [indexer.get_object(id.item()) for id in raw_pred_indices]
+    # print(pred_labels)
     # Find the first EOS token or take the whole sequence if there's no EOS
     first_eos_tok = pred_labels.index(EOS_SYMBOL) if EOS_SYMBOL in pred_labels else len(pred_labels) - 1
     return pred_labels[0:first_eos_tok + 1] # include the EOS in the return
@@ -146,21 +147,63 @@ def decode_basic(model, indexer, exs, num_exs=-1):
     num_exs_to_use = min(num_exs, len(exs)) if num_exs > 0 else len(exs)
     for i in range(0, num_exs_to_use):
         ex_length = sum(exs[i]['attention_mask'])
+        
         dev_input_tensor = torch.tensor([exs[i]['input_ids'][0:ex_length]], dtype=torch.long)
         # You can increase this to run "real" beam search
         beam_size = 1
         # The generate method runs decoding with the specified set of
         # hyperparameters and returns a list of possible sequences
+
+
         output_ids = model.generate(dev_input_tensor, num_beams=beam_size, max_length=65, early_stopping=True, num_return_sequences=beam_size)
         # [0] extracts the first candidate in the beam for the simple decoding method
         one_best = pred_indices_to_prediction(output_ids.data[0][1:], indexer)
+
+
+
+
+        
         all_example_preds.append(one_best)
     return all_example_preds
 
 
 def decode_oracle(model, indexer, exs, num_exs):
     # Same as decode_basic but returns the oracle prediction
-    raise Exception("Implement me")
+    all_example_preds = []
+    num_exs_to_use = min(num_exs, len(exs)) if num_exs > 0 else len(exs)
+    # print("blah", num_exs_to_use)
+    for i in range(0, num_exs_to_use):
+        ex_length = sum(exs[i]['attention_mask'])
+        # print(exs[i].keys())
+        # print(len(exs[i]['input_ids']))
+        # print(len(exs[i]['labels']))
+        # print(ex_length)
+        dev_input_tensor = torch.tensor([exs[i]['input_ids'][0:ex_length]], dtype=torch.long)
+        # You can increase this to run "real" beam search
+        beam_size = 10
+        # The generate method runs decoding with the specified set of
+        # hyperparameters and returns a list of possible sequences
+        output_ids = model.generate(dev_input_tensor, num_beams=beam_size, max_length=65, early_stopping=True, num_return_sequences=beam_size)
+        # [0] extracts the first candidate in the beam for the simple decoding method
+        # print(len(exs[i]['labels']))
+
+        scores = []
+        candidates = []
+
+        for z in range(len(output_ids)):
+            
+            candidate = pred_indices_to_prediction(output_ids.data[z][1:], indexer)
+            gold_labels = [indexer.get_object(j) for j in exs[i]['labels'] if j >= 0]
+            (a,b,c) = score_sequence(candidate, gold_labels)
+            scores.append(b)
+            candidates.append(candidate)
+        
+        # print(scores)
+        blah = scores.index(max(scores))
+        
+        # print(b)
+        all_example_preds.append(candidates[blah])
+    return all_example_preds
 
 
 def decode_fancy(model, indexer, exs, num_exs):

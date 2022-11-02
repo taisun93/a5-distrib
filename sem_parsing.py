@@ -26,7 +26,7 @@ def _parse_args():
     parser.add_argument('--test_output_path', type=str, default='geo_test_output.tsv', help='path to write blind test results')
     parser.add_argument('--domain', type=str, default='geo', help='domain (geo for geoquery)')
     parser.add_argument('--no_java_eval', dest='perform_java_eval', default=True, action='store_false', help='run evaluation of constructed query against java backend')
-    parser.add_argument('--quiet', dest='quiet', default=False, action='store_true', help="Suppress dataset printing")
+    parser.add_argument('--quiet', dest='quiet', default=True, action='store_true', help="Suppress dataset printing")
     parser.add_argument('--eval_from_checkpoint', default=False, action='store_true', help="Evaluate model from checkpoint")
     parser.add_argument('--model_save_path', type=str, default='./models/bart-summarizer/', help='path to save models (directory)')
     parser.add_argument('--model_load_path', type=str, default='./models/bart-summarizer/checkpoint-1500', help='path to load model from (specific checkpoint)')
@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     if args.decode_type == "BASIC":
         # Removes the labels to ensure that you don't simply use the oracle method here
-        preds = decode_basic(model, indexer, dev_dataset.copy_no_label(), num_exs=-1)
+        preds = decode_basic(model, indexer, dev_dataset.copy_no_label(), num_exs=5)
         score_decoded_outputs(preds, indexer, dev_dataset)
     elif args.decode_type == "ORACLE":
         preds = decode_oracle(model, indexer, dev_dataset, num_exs=-1)
