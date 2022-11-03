@@ -203,22 +203,37 @@ def decode_oracle(model, indexer, exs, num_exs):
 
 
 def decode_fancy(model, indexer, exs, num_exs):
-    literal = []
+
+    const_set = set(map(indexer.index_of, const_list))
+    
+    # cov = list(map(indexer.get_object, (const_list)))
     # for x in const_list:
     #     print(indexer.get_object(x))
     # return
+
+    #inds to objects
     
     all_example_preds = []
     num_exs_to_use = min(num_exs, len(exs)) if num_exs > 0 else len(exs)
     for i in range(0, num_exs_to_use):
-        print(exs[i]["input_ids"])
-        ex_length = sum(exs[i]['attention_mask'])
-
-        # exs[i]['input_ids']
+        # print()
         
-        dev_input_tensor = torch.tensor([exs[i]['input_ids'][0:ex_length]], dtype=torch.long)
+        ex_length = sum(exs[i]['attention_mask'])
+        inputs = [exs[i]['input_ids'][0:ex_length]]
+        # print(inputs)
+
+        
+
+        # converted = list(map(indexer.get_object, (exs[i]["input_ids"])))
+        combined = list(set(inputs[0]) & const_set)
+        # print(combined)
+
+
+        
+        
+        dev_input_tensor = torch.tensor(inputs, dtype=torch.long)
         # You can increase this to run "real" beam search
-        beam_size = 10
+        beam_size = 20
         # The generate method runs decoding with the specified set of
         # hyperparameters and returns a list of possible sequences
 
@@ -226,8 +241,41 @@ def decode_fancy(model, indexer, exs, num_exs):
         output_ids = model.generate(dev_input_tensor, num_beams=beam_size, max_length=65, early_stopping=True, num_return_sequences=beam_size)
         # [0] extracts the first candidate in the beam for the simple decoding method
         # for x in output_ids:
+        
+
+        # print(output_ids[0][1:])
+        # print( z in output_ids[0][1:])
+        # print(type(output_ids[0]))
+        # print(set(output_ids.data[0]))
+
+        # while(combined and len(output_ids)>1 and (len(set(output_ids[0]) & combined) != len(combined))  ):
+        #     print("pop")
+        #     output_ids.pop()
+
+        i = 0
+
+        # print(combined)
+        if(combined):
+            # combT = torch.tensor(combined)
+            for x in output_ids.data:
+                # print(x)
+                missing = False
+
+                for z in combined:
+                    if z not in x:
+                        missing = True
+                if not missing:
+                    break
+                i +=1
+
+        # for x in combined:            
+        #     if x not in output_ids.data[i]:
+        #         i+=1
+        #         continue
             
-        one_best = pred_indices_to_prediction(output_ids.data[0][1:], indexer)
+        if i == beam_size:
+            i = 0
+        one_best = pred_indices_to_prediction(output_ids.data[i][1:], indexer)
         
         all_example_preds.append(one_best)
     return all_example_preds
