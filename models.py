@@ -207,6 +207,7 @@ def decode_fancy(model, indexer, exs, num_exs):
     # for x in const_list:
     #     print(indexer.get_object(x))
     # return
+    
     all_example_preds = []
     num_exs_to_use = min(num_exs, len(exs)) if num_exs > 0 else len(exs)
     for i in range(0, num_exs_to_use):
